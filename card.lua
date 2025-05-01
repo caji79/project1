@@ -9,25 +9,33 @@ CARD_STATE = {
     GRABBED = 2
   }
 
+SUITS = { "spades", "clubs", "hearts", "diamonds" }
+RANKS = { 'A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K' }
+
 CardClass.cardFront = love.graphics.newImage('assets/cards.png')
 CardClass.cardFront:setFilter('nearest', 'nearest')
 CardClass.cardBack = love.graphics.newImage('assets/cardBack.png')
 CardClass.cardBack:setFilter('nearest', 'nearest')
-CardClass.width = 25
-CardClass.height = 38
-CardClass.quads = generateQuads(CardClass.cardFront, CardClass.width, CardClass.height)
+CARD_WIDTH = 25
+CARD_HEIGHT = 38
+CARD_SCALE_X = 3
+CARD_SCALE_Y =3
+CardClass.quads = generateQuads(CardClass.cardFront, CARD_WIDTH, CARD_HEIGHT)
 
-function CardClass:new(quadIndex, xPos, yPos)
+function CardClass:new(quadIndex, xPos, yPos, rank, suit, faceUp)
     local card = {}
     local metadata = {__index = CardClass}
     setmetatable(card, metadata)
 
     card.position = Vector(xPos, yPos)
-    card.scaleX = 3
-    card.scaleY = 3
+    card.scaleX = CARD_SCALE_X
+    card.scaleY = CARD_SCALE_Y
     card.state = CARD_STATE.IDLE
     card.quad = CardClass.quads[quadIndex]
-    card.hidden = false
+    card.rank = rank
+    card.suit = suit
+    card.faceUp = faceUp or false
+    card.draggable = false
 
     return card
 end
@@ -40,10 +48,10 @@ function CardClass:update()
 end
 
 function CardClass:draw()
-    if self.hidden then
-        love.graphics.draw(CardClass.cardBack, self.position.x, self.position.y, 0, self.scaleX, self.scaleY)
-    else
+    if self.faceUp then
         love.graphics.draw(CardClass.cardFront, self.quad, self.position.x, self.position.y, 0, self.scaleX, self.scaleY)
+    else
+        love.graphics.draw(CardClass.cardBack, self.position.x, self.position.y, 0, self.scaleX, self.scaleY)
     end
 end
 
@@ -55,9 +63,34 @@ function CardClass:checkForMouseOver(grabber)
     local mousePos = grabber.currentMousePos
     local isMouseOver = 
       mousePos.x > self.position.x and
-      mousePos.x < self.position.x + (CardClass.width * self.scaleX) and
+      mousePos.x < self.position.x + (CARD_WIDTH * self.scaleX) and
       mousePos.y > self.position.y and
-      mousePos.y < self.position.y + (CardClass.height * self.scaleY)
+      mousePos.y < self.position.y + (CARD_HEIGHT * self.scaleY)
     
     self.state = isMouseOver and CARD_STATE.MOUSE_OVER or CARD_STATE.IDLE
   end
+
+function CardClass:deckBuilder()
+    local deck = {}
+
+    for suitIdx, suit in ipairs(SUITS) do
+        for rankIdx, rank in ipairs(RANKS) do
+            local quadIdx = (suitIdx - 1) * #RANKS + rankIdx
+            table.insert(deck, CardClass:new(quadIdx, 0, 0, rank, suit, true))
+        end
+    end
+
+    self:shuffle(deck)
+    return deck
+end
+
+function CardClass:shuffle(deck)
+    -- lecture slides modern shuffling method
+    local cardCount = #deck
+    for i = 1, cardCount do
+        local randIndex = love.math.random(cardCount)
+        deck[randIndex], deck[cardCount] = deck[cardCount], deck[randIndex]
+        cardCount = cardCount - 1
+    end
+    return deck
+end

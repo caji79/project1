@@ -30,19 +30,26 @@ function GrabberClass:update()
 end
 
 function GrabberClass:grab()
-    self.grabPos = self.currentMousePos
-
-    -- the topmost card under the cursor
-    for i = #self.cards, 1, -1 do
-        local card = self.cards[i]
-        if card.state == CARD_STATE.MOUSE_OVER then
+    for _, card in ipairs(cardTable) do
+        if card.state == CARD_STATE.MOUSE_OVER and card.draggable then
             self.heldObject = card
             card.state = CARD_STATE.GRABBED
             self.mouseOffset = {
                 x = self.currentMousePos.x - card.position.x,
                 y = self.currentMousePos.y - card.position.y
             }
-            break
+            card.originalPos = Vector(card.position.x, card.position.y)
+            self.grabPos = self.currentMousePos -- Only set if successfully caught
+            print("GRAB - ", card)
+            -- move the card to the top 
+            for i, c in ipairs(cardTable) do
+                if c == card then
+                table.remove(cardTable, i)
+                table.insert(cardTable, card) -- reinsert to the latest
+                break
+                end
+            end
+            return
         end
     end
 end
