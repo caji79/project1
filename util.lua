@@ -15,3 +15,4 @@ function generateQuads(image, cardWidth, cardHeight)
 
     return quads
 end
+

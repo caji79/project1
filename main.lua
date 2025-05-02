@@ -7,7 +7,7 @@ require "grabber"
 require "gameBoard"
 
 function love.load()
-    love.window.setMode(960, 640)
+    love.window.setMode(960, 720)
     love.graphics.setBackgroundColor(0, 0.7, 0.2, 1)
     love.window.setTitle('Solitaire')
 
@@ -44,14 +44,20 @@ function love.load()
         table.insert(cardTable, card)
     end
 
-    local tblPosX, tblPosY = 150, 150
-    local pileSpacing = (CARD_WIDTH * CARD_SCALE_X) + 40
-    local cardOverlap = 30
+    tblPosX, tblPosY = 150, 150
+    pileSpacing = (CARD_WIDTH * CARD_SCALE_X) + 40
+    cardOverlap = 30
+
+    tableauPos = {}
+    for i = 1, 7 do
+        tableauPos[i] = Vector(tblPosX + (i - 1) * pileSpacing, tblPosY)
+    end
+
     for i = 1, 7 do
         tableauPiles[i] = {}  -- seven tableau piles total, {1}, {2}, {3}, {4}, {5}, {6}, {7}
         for j = 1, i do
             local card = table.remove(deckPile)
-            card.position = Vector(tblPosX + (i - 1) * pileSpacing, tblPosY + (j - 1) * cardOverlap)
+            card.position = Vector(tableauPos[i].x, tableauPos[i].y + (j - 1) * cardOverlap)
             card.faceUp = (j == i)      -- only the last card is flipped
             card.draggable =  (j == i)  -- only the last card is draggable
             table.insert(tableauPiles[i], card)
@@ -115,26 +121,6 @@ function love.draw()
         card:draw()
     end
 
-    -- -- tableau (7 piles)
-    -- local x, y = 150, 150
-    -- local pileSpacing = (CARD_WIDTH * CARD_SCALE_X) + 40
-    -- local cardOverlap = 30
-    -- local heldCard = grabber.heldObject
-
-    -- for pile = 1, 7 do
-    --     local pileX = x + pileSpacing * (pile - 1)
-    --     for cardIdx, card in ipairs(Tableau[pile]) do
-    --         if card ~= heldCard then
-    --             local pileY = y + cardOverlap * (cardIdx - 1)
-    --             card.position.x = pileX
-    --             card.position.y = pileY
-    --             card:draw()
-    --         end
-    --     end
-    -- end
-
-    -- if heldCard then heldCard:draw() end
-
     -- card state debug
     love.graphics.setColor(1,1,1)
     local debugState = CARD_STATE.IDLE
@@ -154,6 +140,8 @@ function love.draw()
 
 end
 
+-- collision detection
+-- https://love2d.org/forums/viewtopic.php?t=81957
 function checkOverlaps(ax,ay,aw,ah, bx,by,bw,bh)
     return ax < bx + bw and 
            ax + aw > bx and 
@@ -173,5 +161,36 @@ function validStackPileAdding(card, suitIdx)
     else
         local topCard = suitPile[#suitPile]
         return rankVal == rankValueMap[topCard.rank] + 1
+    end
+end
+
+function removeCardFromOrigin(card, origin)
+    if origin.type == "tableau" then
+        table.remove(tableauPiles[origin.col], origin.idx)
+
+    elseif origin.type == "draw" then
+        for i = #drawPile, 1, -1 do
+            if drawPile[i] == card then
+                table.remove(drawPile, i)
+                break
+            end
+        end
+
+    elseif origin.type == "deck" then
+        for i = #deckPile, 1, -1 do
+            if deckPile[i] == card then
+                table.remove(deckPile, i)
+                break
+            end
+        end
+
+    elseif origin.type == "foundation" then
+        local pile = stackPiles[ origin.suit ]
+        for i = #pile, 1, -1 do
+            if pile[i] == card then
+                table.remove(pile, i)
+                break
+            end
+        end
     end
 end
