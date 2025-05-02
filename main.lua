@@ -14,7 +14,7 @@ function love.load()
     cardTable = {}
     -- table.insert(cardTable, CardClass:new(52, 100, 100))
     -- table.insert(cardTable, CardClass:new(1, 0, 0))
-    grabber = GrabberClass:new()
+    grabber = GrabberClass:new(cardTable)
 
     deckPile = {}
     tableauPiles = {}
@@ -76,6 +76,38 @@ function love.update()
 
 end
 
+function love.mousepressed(x, y, button)
+    if button == 1 then drawCard(x, y) end
+end
+
+function drawCard(clickX, clickY)
+    local deckX, deckY = 25, 25
+    local deckW = CARD_WIDTH * CARD_SCALE_X
+    local deckH = CARD_HEIGHT * CARD_SCALE_Y
+    if clickX > deckX and clickX < deckX + deckW and clickY > deckY and clickY < deckY + deckH then
+        if #deckPile > 0 then
+            -- remove top card from stock
+            local card = table.remove(deckPile)
+            card.faceUp = true
+            card.draggable = true
+
+            -- move it to your draw‐pile position
+            card.position = Vector(drawPilePos.x, drawPilePos.y)
+            table.insert(drawPile, card)
+            table.insert(cardTable, card)
+        else
+            for i = #drawPile, 1, -1 do
+                local card = table.remove(drawPile)
+                card.faceUp = false
+                card.draggable = false
+                card.position = Vector(25, 25)
+                table.insert(deckPile, card)
+                table.insert(cardTable, card)
+            end
+        end
+    end
+end
+
 function love.draw()
     GameBoardClass:draw()
 
@@ -120,4 +152,26 @@ function love.draw()
     love.graphics.print("State: "..debugState, 10, 10)
     love.graphics.setColor(1,1,1)
 
+end
+
+function checkOverlaps(ax,ay,aw,ah, bx,by,bw,bh)
+    return ax < bx + bw and 
+           ax + aw > bx and 
+           ay < by + bh and 
+           ay + ah > by
+end
+
+function validStackPileAdding(card, suitIdx)
+    local targetSuit = SUITS[suitIdx]
+    if card.suit ~= targetSuit then return false end
+
+    local suitPile = stackPiles[targetSuit]
+    local rankVal = rankValueMap[card.rank]
+
+    if #suitPile == 0 then
+        return rankVal == 1   -- only A goes on an empty foundation
+    else
+        local topCard = suitPile[#suitPile]
+        return rankVal == rankValueMap[topCard.rank] + 1
+    end
 end
