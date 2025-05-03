@@ -8,7 +8,7 @@ require "gameBoard"
 
 function love.load()
     love.window.setMode(960, 720)
-    love.graphics.setBackgroundColor(0, 0.7, 0.2, 1)
+    love.graphics.setBackgroundColor(0, 0.6, 0.2, 1)
     love.window.setTitle('Solitaire')
 
     cardTable = {}

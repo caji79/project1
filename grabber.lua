@@ -18,6 +18,12 @@ end
 
 function GrabberClass:update()
     self.currentMousePos = Vector(love.mouse.getX(), love.mouse.getY())
+    if self.heldCards then
+        for k, card in ipairs(self.heldCards) do
+            card.position.x = self.currentMousePos.x - self.mouseOffset.x
+            card.position.y = self.currentMousePos.y - self.mouseOffset.y + (k - 1) * cardOverlap
+        end
+    end
     
     -- Click
     if love.mouse.isDown(1) and self.grabPos == nil then
@@ -93,7 +99,28 @@ function GrabberClass:grab()
         end
     end
 
+    local held = {}
+    if origin.type == "tableau" then
+        local pile = tableauPiles[origin.col]
+        for j = origin.idx, #pile do
+            table.insert(held, pile[j])
+        end
+
+        for j = #pile, origin.idx, -1 do
+            table.remove(pile, j)
+        end
+    else
+        held = { grabbedCard }
+        for j = #drawPile, 1, -1 do
+            if drawPile[j] == grabbedCard then
+                table.remove(drawPile, j)
+                break
+            end
+        end
+    end
+
     self.origin = origin
+    self.heldCards = held
     self.heldObject = grabbedCard
     grabbedCard.state = CARD_STATE.GRABBED
     self.mouseOffset = {
@@ -104,26 +131,38 @@ function GrabberClass:grab()
     self.grabPos = self.currentMousePos
 
     -- move the card to the top 
-    for i, c in ipairs(cardTable) do
-        if c == grabbedCard then
-            table.remove(cardTable, i)
-            table.insert(cardTable, grabbedCard)
-            break
+    -- for i, c in ipairs(cardTable) do
+    --     if c == grabbedCard then
+    --         table.remove(cardTable, i)
+    --         table.insert(cardTable, grabbedCard)
+    --         break
+    --     end
+    -- end
+
+    -- bring them to front in draw order
+    for _, card in ipairs(held) do
+        for k, c in ipairs(cardTable) do
+            if c == card then
+                table.remove(cardTable, k)
+                break
+            end
         end
-    end
-            
+        table.insert(cardTable, card)
+    end            
 end
 
 function GrabberClass:release()
 
-    if self.heldObject == nil then -- we have nothing to release
+    if self.heldCards == nil then -- we have nothing to release
         return
     end
 
-    local card = self.heldObject
+    
+    local basedCard = self.heldCards[1]
     local cw, ch = CARD_WIDTH * CARD_SCALE_X, CARD_HEIGHT * CARD_SCALE_Y
     local moved = false
 
+    local card = self.heldObject
     for i, pos in ipairs(stackPilesPos) do
         if checkOverlaps(card.position.x, card.position.y, cw, ch, pos.x, pos.y, cw, ch) 
             and validStackPileAdding(card, i) 
@@ -148,13 +187,18 @@ function GrabberClass:release()
                 dropX =  top.position.x
                 dropY = top.position.y + cardOverlap
 
-                if checkOverlaps(card.position.x, card.position.y, cw, ch, dropX, dropY, cw, ch)
-                    and GrabberClass:tableauMove(card, top)
+                if checkOverlaps(basedCard.position.x, basedCard.position.y, cw, ch, dropX, dropY, cw, ch)
+                    and self:tableauMove(basedCard, top)
                 then
-                    card.position = Vector(dropX, dropY)
-                    card.draggable = true
-                    removeCardFromOrigin(card, self.origin)
-                    table.insert(pile, card)
+                    for k, c in ipairs(self.heldCards) do
+                        c.position = Vector(dropX, dropY)
+                        c.draggable = true
+                        table.insert(pile, c)
+                    end
+                    -- card.position = Vector(dropX, dropY)
+                    -- card.draggable = true
+                    -- removeCardFromOrigin(card, self.origin)
+                    -- table.insert(pile, card)
                     moved = true
                     break
                 end
@@ -162,15 +206,37 @@ function GrabberClass:release()
                 dropX = pos.x
                 dropY = pos.y
 
-                if checkOverlaps(card.position.x, card.position.y, cw, ch, dropX, dropY, cw, ch)
-                    and rankValueMap[card.rank] == 13
+                if checkOverlaps(basedCard.position.x, basedCard.position.y, cw, ch, dropX, dropY, cw, ch)
+                    and rankValueMap[basedCard.rank] == 13
                 then
-                    card.position = Vector(dropX, dropY)
-                    removeCardFromOrigin(card, self.origin)
-                    table.insert(pile, card)
+                    for k, c in ipairs(self.heldCards) do
+                        c.position = Vector(dropX, dropY + (k - 1) * cardOverlap)
+                        c.draggable = true
+                        table.insert(pile, c)
+                    end
+                    -- card.position = Vector(dropX, dropY)
+                    -- removeCardFromOrigin(card, self.origin)
+                    -- table.insert(pile, card)
                     moved = true
                     break
                 end
+            end
+        end
+    end
+
+    if not moved then
+        -- card.position = card.originalPos
+        for k, card in ipairs(self.heldCards) do
+            -- reconstruct original positions in the source pile
+            if self.origin.type=="tableau" then
+                local col = self.origin.col
+                local y0 = tableauPos[col].y + (self.origin.idx + k - 2)*cardOverlap
+                card.position = Vector(tableauPos[col].x, y0)
+                table.insert(tableauPiles[col], self.origin.idx + k - 1, card)
+            else
+                -- drawPile or others
+                card.position = Vector(drawPilePos.x, drawPilePos.y)
+                table.insert(drawPile, card)
             end
         end
     end
@@ -187,16 +253,17 @@ function GrabberClass:release()
         end
     end
 
-    if not moved then
-        card.position = card.originalPos
-    end
-
     -- local isValidRealse = true
     -- if not isValidRealse then
     --     self.heldObject.position = self.grabPos
     -- end
 
-    self.heldObject.state = 0 -- it's no longer grabbed
+    for _, card in ipairs(self.heldCards) do
+        card.state = CARD_STATE.IDLE
+    end
+    self.heldCards = nil
+    self.origin = nil
+    -- self.heldObject.state = 0 -- it's no longer grabbed
     self.heldObject = nil
     self.grabPos    = nil
 end
