@@ -191,14 +191,13 @@ function GrabberClass:release()
                     and self:tableauMove(basedCard, top)
                 then
                     for k, c in ipairs(self.heldCards) do
-                        c.position = Vector(dropX, dropY)
+                        if self.origin.type == "foundation" then
+                            removeCardFromOrigin(card, self.origin)
+                        end
+                        c.position = Vector(dropX, dropY + (k-1)*cardOverlap)
                         c.draggable = true
                         table.insert(pile, c)
                     end
-                    -- card.position = Vector(dropX, dropY)
-                    -- card.draggable = true
-                    -- removeCardFromOrigin(card, self.origin)
-                    -- table.insert(pile, card)
                     moved = true
                     break
                 end
@@ -210,13 +209,13 @@ function GrabberClass:release()
                     and rankValueMap[basedCard.rank] == 13
                 then
                     for k, c in ipairs(self.heldCards) do
+                        if self.origin.type == "foundation" then
+                            removeCardFromOrigin(card, self.origin)
+                        end
                         c.position = Vector(dropX, dropY + (k - 1) * cardOverlap)
                         c.draggable = true
                         table.insert(pile, c)
                     end
-                    -- card.position = Vector(dropX, dropY)
-                    -- removeCardFromOrigin(card, self.origin)
-                    -- table.insert(pile, card)
                     moved = true
                     break
                 end
@@ -233,6 +232,19 @@ function GrabberClass:release()
                 local y0 = tableauPos[col].y + (self.origin.idx + k - 2)*cardOverlap
                 card.position = Vector(tableauPos[col].x, y0)
                 table.insert(tableauPiles[col], self.origin.idx + k - 1, card)
+
+            elseif self.origin.type == "foundation" then
+                local s = self.origin.suit
+                local suitIdx
+                for i, v in ipairs(SUITS) do
+                    if v == s then
+                        suitIdx = i
+                        break
+                    end
+                end
+                card.position = Vector(stackPilesPos[suitIdx].x, stackPilesPos[suitIdx].y)
+                table.insert(stackPiles[s], card)
+            
             else
                 -- drawPile or others
                 card.position = Vector(drawPilePos.x, drawPilePos.y)
