@@ -36,7 +36,7 @@
 
 - Visual design (maybe)
 
-## What should improve
+### What should improve
 
 - Code structure
 
@@ -52,3 +52,7 @@
     - try to reduce the length of file
 
 - Menu scene or Win scene
+
+## Assets
+
+- I mad the card assets in the game by using Aseprite
