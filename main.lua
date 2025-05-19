@@ -6,6 +6,11 @@ require "card"
 require "grabber"
 require "gameBoard"
 
+local DRAW_OFFSET_Y = 30
+local drawPilePosX = 25
+local drawPilePosY = 150
+local deckShowCount = 3
+
 function love.load()
     love.window.setMode(960, 720)
     love.graphics.setBackgroundColor(0, 0.6, 0.2, 1)
@@ -20,7 +25,12 @@ function love.load()
     tableauPiles = {}
 
     drawPile = {}
-    drawPilePos = Vector(25, 150)
+    drawShow = {}
+    drawCardPos = {
+        Vector(drawPilePosX, drawPilePosY),
+        Vector(drawPilePosX, drawPilePosY + DRAW_OFFSET_Y),
+        Vector(drawPilePosX, drawPilePosY + DRAW_OFFSET_Y*2)
+    }
 
     stackPiles = {}
     stackPilesPos = {
@@ -91,26 +101,141 @@ function drawCard(clickX, clickY)
     local deckW = CARD_WIDTH * CARD_SCALE_X
     local deckH = CARD_HEIGHT * CARD_SCALE_Y
     if clickX > deckX and clickX < deckX + deckW and clickY > deckY and clickY < deckY + deckH then
+        -- method 1 alpha
         if #deckPile > 0 then
-            -- remove top card from stock
-            local card = table.remove(deckPile)
-            card.faceUp = true
-            card.draggable = true
+            local toShow = math.min(deckShowCount, #deckPile)
+            local toKeep = 0
 
-            -- move it to your draw‐pile position
-            card.position = Vector(drawPilePos.x, drawPilePos.y)
-            table.insert(drawPile, card)
-            table.insert(cardTable, card)
-        else
+            if toShow < 3 and #drawShow > 0 then
+                -- Calculate how many previous cards to keep (to ensure a total of 3 visible cards)
+                toKeep = math.min(3 - toShow, #drawShow)
+            end
+
+            if #drawShow > 0 then
+                for i = 1, #drawShow - toKeep do
+                  local card = drawShow[i]
+                  card.position = drawCardPos[1]
+                  card.draggable = false  -- Ensure stacked cards cannot be dragged
+                end
+            end
+
+            local drawUpdate = {}
+            if toKeep > 0 then
+                for i = #drawShow - toKeep + 1, #drawShow do
+                    local card = drawShow[i]
+                    table.insert(drawUpdate, card)
+                end
+            end
+
+            drawShow = {}
+
+            for i = 1, toShow do
+                local card = table.remove(deckPile)
+                if card then
+                    card.faceUp, card.draggable = true, true
+                    -- Ensure new cards are at the top of rendering order
+                    for j, c in ipairs(cardTable) do
+                        if c == card then
+                            table.remove(cardTable, j)
+                            table.insert(cardTable, card) -- Reinsert at the end (top)
+                            break
+                        end
+                    end
+                    table.insert(drawPile, card)
+                    table.insert(drawUpdate, card)
+                end
+            end
+
+            for i, card in ipairs(drawUpdate) do
+                card.position = drawCardPos[i]
+                table.insert(drawShow, card)
+            end
+            
+        elseif #drawPile > 0 then
+            drawShow = {}
             for i = #drawPile, 1, -1 do
                 local card = table.remove(drawPile)
                 card.faceUp = false
                 card.draggable = false
                 card.position = Vector(25, 25)
                 table.insert(deckPile, card)
-                table.insert(cardTable, card)
+                -- table.insert(cardTable, card)
             end
         end
+
+        --method 1
+        -- if #deckPile > 0 then
+        --     for i = 1, 3 do
+        --         if #deckPile == 0 then break end
+        --         -- remove top card from stock
+        --         local card = table.remove(deckPile)
+        --         card.faceUp = true
+        --         card.draggable = true
+
+        --         -- move it to your draw‐pile position
+        --         table.insert(drawPile, card)
+        --         table.insert(cardTable, card)
+        --     end
+            
+        -- elseif #drawPile > 0 then
+        --     for i = #drawPile, 1, -1 do
+        --         local card = table.remove(drawPile)
+        --         card.faceUp = false
+        --         card.draggable = false
+        --         card.position = Vector(25, 25)
+        --         table.insert(deckPile, card)
+        --         table.insert(cardTable, card)
+        --     end
+        -- end
+
+        --method 2
+        -- for i = #drawPile, 1, -1 do
+        --     local card = table.remove(drawPile, i)
+        --     card.faceUp    = false
+        --     card.draggable = false
+        --     card.position  = Vector(deckX, deckY)
+        --     -- insert at the bottom so next draws come after these
+        --     table.insert(deckPile, 1, card)
+        --     table.insert(cardTable, card)
+        -- end
+
+        -- -- 2) draw up to three new cards from the top of the deck
+        -- for i = 1, 3 do
+        --     if #deckPile == 0 then break end
+        --     local card = table.remove(deckPile)  -- top of deck
+        --     card.faceUp = true
+        --     card.draggable = true
+        --     card.position = Vector(drawPilePos.x, drawPilePos.y)
+        --     table.insert(drawPile, card)
+        --     table.insert(cardTable, card)
+        -- end
+
+        --method 3
+        -- if #deckPile > 0 then
+        --     -- === CASE 1: Still cards in stock, so draw up to 3 ===
+        --     for i = 1, 3 do
+        --         if #deckPile == 0 then break end
+        --         local c = table.remove(deckPile)  -- take from top
+        --         c.faceUp    = true
+        --         c.draggable = true
+        --         table.insert(drawPile, c)
+        --     end
+    
+        -- elseif #drawPile > 0 then
+        --     -- === CASE 2: Stock is empty, recycle the waste ===
+        --     for i = #drawPile, 1, -1 do
+        --         local c = table.remove(drawPile, i)
+        --         c.faceUp    = false
+        --         c.draggable = false
+        --         c.position  = Vector(deckX, deckY)
+        --         table.insert(deckPile, 1, c)     -- send to bottom of deck
+        --     end
+        -- end
+
+        -- for i, card in ipairs(drawPile) do
+        --     card.draggable = (i == #drawPile)
+        -- end
+
     end
 end
 
