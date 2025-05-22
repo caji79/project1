@@ -6,7 +6,6 @@ require "card"
 require "grabber"
 require "gameBoard"
 
-<<<<<<< HEAD
 gameWon = false
 
 function checkForWin()
@@ -17,12 +16,11 @@ function checkForWin()
     end
     return true
 end
-=======
+
 local DRAW_OFFSET_Y = 30
 local drawPilePosX = 25
 local drawPilePosY = 150
 local deckShowCount = 3
->>>>>>> 1e65637690eaedbc866f61cf83df7f14b6f34352
 
 function love.load()
     love.window.setMode(960, 720)
