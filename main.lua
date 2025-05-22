@@ -6,6 +6,17 @@ require "card"
 require "grabber"
 require "gameBoard"
 
+gameWon = false
+
+function checkForWin()
+    for _, suit in ipairs(SUITS) do
+        if #stackPiles[suit] < 13 then
+            return false
+        end
+    end
+    return true
+end
+
 function love.load()
     love.window.setMode(960, 720)
     love.graphics.setBackgroundColor(0, 0.6, 0.2, 1)
@@ -29,6 +40,11 @@ function love.load()
         Vector(725, 25),
         Vector(840, 25)
     }
+
+    defaultFont = love.graphics.getFont()
+
+    -- create a larger font for the win screen
+    winFont = love.graphics.newFont(64)
 
     local suitStack = { "spades", "clubs", "hearts", "diamonds" }
     for i, suit in ipairs(suitStack) do
@@ -80,6 +96,13 @@ function love.update()
         end
     end
 
+end
+
+-- win screen debugging function
+function love.keypressed(key)
+    if key == "w" then    -- press “W” to flip win on/off
+        gameWon = not gameWon
+    end
 end
 
 function love.mousepressed(x, y, button)
@@ -137,6 +160,20 @@ function love.draw()
     end
     love.graphics.print("State: "..debugState, 10, 10)
     love.graphics.setColor(1,1,1)
+
+    if gameWon then
+        local w,h = love.graphics.getDimensions()
+        -- dim the background
+        love.graphics.setColor(0,0,0,0.5)
+        love.graphics.rectangle("fill", 0,0, w,h)
+        -- draw the text
+        -- switch to the big win font:
+        love.graphics.setFont(winFont)
+        love.graphics.setColor(1,1,1,1)
+        love.graphics.printf("You Win!", 0, h*0.5, w, "center")
+        -- restore your normal font if you draw other text later:
+        love.graphics.setFont(defaultFont)
+    end
 
 end
 

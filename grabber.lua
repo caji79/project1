@@ -173,6 +173,11 @@ function GrabberClass:release()
             -- add it to the stackPile table
             table.insert(stackPiles[ SUITS[i] ], card)
             moved = true
+
+            if checkForWin() then
+                gameWon = true
+            end
+
             break
         end
     end
